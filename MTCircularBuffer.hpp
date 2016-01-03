@@ -176,6 +176,29 @@ public:
 	}
 
     /**
+     * @brief Discards all dirty slots and resets all the buffer slots (NOTE: this method
+     *        is intented to be called when no other thread is accessing the buffer)
+     *
+     */
+    inline void clear()
+    {
+        boost::posix_time::time_duration lock_timeout(0, 0, DEFAULT_LOCK_TIMEOUT_SEC);
+
+        // Advance to next slot (we need to lock the entire circular buffer to change curr_w_slot)
+        boost::unique_lock< boost::timed_mutex > sc_lock( main_mtx, lock_timeout  );
+        if( !sc_lock.owns_lock() ) //owns_lock is false if lock failed (probably timeout has occurred)
+        {
+            throw SlotAcqTimeout();
+        }
+
+        while( !dirty_slots.empty() )
+            dirty_slots.pop();
+
+        curr_w_slot = 0;
+
+    }
+
+    /**
      * @return number of buffer slots
      */
 	inline size_t size() const { return buff.size(); }

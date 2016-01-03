@@ -51,6 +51,20 @@ SCENARIO("Basic single-threaded operations", "[Single]")
                 }
             }
         }
+
+        WHEN("Buffer is cleared")
+        {
+            {
+                MTCircularBuffer< int >::BufferSlotWriteAccess wa;
+                buff.write_next( wa );
+            }
+            REQUIRE( buff.num_consumable_slots() > 0 );
+            buff.clear();
+            THEN("Clear succeeded")
+            {
+                REQUIRE( buff.num_consumable_slots() == 0 );
+            }
+        }
     }
 
     GIVEN( "Buffer with 1 slots, write access granted" ) {
