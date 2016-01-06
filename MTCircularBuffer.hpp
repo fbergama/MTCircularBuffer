@@ -194,6 +194,11 @@ public:
         while( !dirty_slots.empty() )
             dirty_slots.pop();
 
+        for( size_t i=0; i<buff_desc.size(); ++i )
+        {
+            buff_desc[i]->is_dirty = false;
+        }
+
         curr_w_slot = 0;
 
     }
@@ -404,7 +409,12 @@ private:
         buff_desc[ acc.slot ]->writing = false;
         buff_desc[ acc.slot ]->is_dirty = true;
         dirty_slots.push( acc.slot );
+
+        while( dirty_slots.size() > size() )
+            dirty_slots.pop();
+
         data_available.notify_one();
+
 #ifdef MT_CIRCULAR_BUFFER_DEBUG
         std::cout << "Write access released on slot " << acc.slot << ", dirty slot produced" << std::endl;
 #endif
