@@ -117,6 +117,7 @@ public:
     public:
         friend class MTCircularBuffer;
         BufferSlotAccess() :  _slot(-1), slot(_slot), srcBuffer(0), data(0) {}
+        BufferSlotAccess( size_t req_slot ) :  _slot(req_slot), slot(_slot), srcBuffer(0), data(0) {}
 
         T* data;
         inline ~BufferSlotAccess()
@@ -267,6 +268,9 @@ public:
     /**
      * @brief read_newest_available Gain shared read access to the most recently produced slot
      * @param acc A BufferSlotReadAccess that will represent slot ownership
+     *            If acc.slot is equal to the newest available slot, this method waits until
+     *            a new slot become available (or a DataAvailableTimeout is raised). This is
+     *            useful to avoid reading the same slot more than once
      */
     inline void read_newest_available( BufferSlotReadAccess& acc )
     {
@@ -274,9 +278,9 @@ public:
         boost::unique_lock< boost::mutex > data_available_lock( data_available_mutex );
 
         // wait until some data is available
-        while( dirty_slots.empty() )
+        while( dirty_slots.empty() ||  (acc.slot == dirty_slots.back()) )
         {
-            if( !data_available.timed_wait( data_available_lock, boost::get_system_time() ) )
+            if( !data_available.timed_wait( data_available_lock, boost::get_system_time()+lock_timeout ) )
             {
                 throw DataAvailableTimeout();
             }
@@ -330,6 +334,16 @@ public:
         acc.srcBuffer = this;
         buff_desc[slot]->n_reading++;
         acc.slot_lock.swap( um );
+    }
+
+    inline void operator()( BufferSlotConsumeAccess& acc )
+    {
+        consume_next_available( acc );
+    }
+
+    inline void operator()( BufferSlotReadAccess& acc )
+    {
+        read_newest_available( acc );
     }
 
     /**
